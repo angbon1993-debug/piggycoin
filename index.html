@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stash Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --green:      #2D6A4F;
+  --green-mid:  #52B788;
+  --green-light:#D8F3DC;
+  --green-pale: #EEF8F1;
+  --bg:         #F7F5F0;
+  --card:       #FFFFFF;
+  --border:     #EBEBEB;
+  --text:       #1A1A1A;
+  --muted:      #8A8A8A;
+  --light:      #B5B5B5;
+  --warn:       #E76F51;
+  --radius:     14px;
+  --shadow:     0 2px 16px rgba(0,0,0,.06);
+}
+body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+header { background:var(--green); padding:18px 32px; display:flex; align-items:center; gap:14px; box-shadow:0 4px 20px rgba(45,106,79,.25); }
+header h1 { font-family:'DM Serif Display',serif; color:#fff; font-size:22px; }
+.badge { background:rgba(255,255,255,.15); color:rgba(255,255,255,.85); font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px; }
+.status { margin-left:auto; font-size:12px; font-weight:600; padding:5px 12px; border-radius:20px; }
+.status.ok  { background:rgba(255,255,255,.2); color:#fff; }
+.status.err { background:#E76F51; color:#fff; }
+
+.container { max-width:860px; margin:0 auto; padding:28px 20px 60px; }
+
+.tabs { display:flex; gap:2px; margin-bottom:20px; border-bottom:2px solid var(--border); overflow-x:auto; }
+.tab { padding:10px 18px; font-size:13px; font-weight:600; cursor:pointer; border:none; background:none; color:var(--muted); border-bottom:2px solid transparent; margin-bottom:-2px; transition:all .2s; white-space:nowrap; }
+.tab.active { color:var(--green); border-bottom-color:var(--green); }
+.tab-content { display:none; }
+.tab-content.active { display:block; }
+
+.card { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:24px; margin-bottom:16px; }
+.card h2 { font-size:15px; font-weight:700; margin-bottom:16px; }
+
+.form-row { margin-bottom:14px; }
+label { display:block; font-size:11px; font-weight:700; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px; }
+select, input[type="text"], textarea { width:100%; background:var(--bg); border:1.5px solid var(--border); border-radius:10px; padding:10px 13px; font-family:'DM Sans',sans-serif; font-size:14px; color:var(--text); outline:none; transition:border-color .2s; appearance:none; }
+select:focus, input[type="text"]:focus, textarea:focus { border-color:var(--green); }
+textarea { resize:vertical; min-height:75px; line-height:1.5; }
+.row-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+@media(max-width:540px){ .row-2 { grid-template-columns:1fr; } }
+
+.btn { display:inline-flex; align-items:center; gap:6px; padding:10px 18px; border-radius:10px; font-family:'DM Sans',sans-serif; font-size:14px; font-weight:600; cursor:pointer; border:none; transition:opacity .15s, transform .1s; }
+.btn:active { transform:scale(.97); }
+.btn-primary { background:var(--green); color:#fff; width:100%; justify-content:center; font-size:15px; padding:13px; margin-top:4px; }
+.btn-primary:hover { opacity:.9; }
+.btn-primary:disabled { opacity:.5; cursor:not-allowed; }
+.btn-outline { background:var(--green-light); color:var(--green); font-size:13px; padding:8px 14px; }
+.btn-outline:hover { background:var(--green-mid); color:#fff; }
+.btn-danger { background:#fdecea; color:var(--warn); font-size:13px; padding:8px 14px; }
+.btn-danger:hover { background:var(--warn); color:#fff; }
+.btn-row { display:flex; gap:10px; margin-top:14px; }
+.btn-row .btn-primary { flex:1; }
+
+/* Toggle */
+.toggle-row { display:flex; align-items:center; justify-content:space-between; }
+.toggle-label h3 { font-size:14px; font-weight:600; }
+.toggle-label p  { font-size:12px; color:var(--muted); margin-top:2px; }
+.switch { position:relative; width:44px; height:24px; cursor:pointer; flex-shrink:0; }
+.switch input { opacity:0; width:0; height:0; }
+.slider { position:absolute; inset:0; background:var(--border); border-radius:12px; transition:.3s; }
+.slider:before { content:''; position:absolute; width:18px; height:18px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.3s; box-shadow:0 1px 4px rgba(0,0,0,.2); }
+input:checked + .slider { background:var(--green); }
+input:checked + .slider:before { transform:translateX(20px); }
+
+/* Image preview */
+.img-preview { width:100%; height:80px; background:var(--bg); border:1.5px dashed var(--border); border-radius:10px; display:flex; align-items:center; justify-content:center; overflow:hidden; margin-top:8px; }
+.img-preview img { width:100%; height:100%; object-fit:cover; display:none; }
+.img-preview.tall { height:220px; }
+.img-preview.tall img { object-fit:contain; background:#111; }
+.ph { font-size:12px; color:var(--light); }
+
+/* Items */
+.items-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.item-block { border:1.5px solid var(--border); border-radius:10px; padding:14px; margin-bottom:10px; background:var(--bg); position:relative; }
+.item-num { font-size:10px; font-weight:700; color:var(--green); letter-spacing:.08em; text-transform:uppercase; margin-bottom:8px; }
+.remove-btn { position:absolute; top:10px; right:10px; background:none; border:none; color:var(--light); font-size:17px; cursor:pointer; transition:color .15s; }
+.remove-btn:hover { color:var(--warn); }
+
+.preview-item { padding:10px; background:var(--bg); border-radius:8px; margin-bottom:8px; }
+.pi-title { font-weight:700; font-size:13px; }
+.pi-body  { color:var(--muted); font-size:12px; margin-top:3px; }
+.pi-meta  { color:var(--light); font-size:11px; margin-top:2px; }
+
+hr { border:none; border-top:1px solid var(--border); margin:16px 0; }
+
+#toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--text); color:#fff; padding:11px 22px; border-radius:28px; font-size:14px; font-weight:500; opacity:0; transition:all .3s cubic-bezier(.34,1.56,.64,1); white-space:nowrap; z-index:999; pointer-events:none; }
+#toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+#toast.success { background:var(--green); }
+#toast.error   { background:var(--warn); }
+
+.spinner { display:inline-block; width:15px; height:15px; border:2px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; vertical-align:middle; }
+@keyframes spin { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <div style="font-size:22px">🌿</div>
+  <h1>Stash Admin</h1>
+  <span class="badge">Dashboard</span>
+  <span id="status-bar" class="status">⏳ Connecting…</span>
+</header>
+
+<div class="container">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('living')">📰 Living Updates</button>
+    <button class="tab"        onclick="switchTab('banner')">🖼️ Banner Ad</button>
+    <button class="tab"        onclick="switchTab('splash')">🌅 Splash Screen</button>
+  </div>
+
+  <!-- ══ Living Updates ══ -->
+  <div class="tab-content active" id="tab-living">
+    <div class="card">
+      <h2>👁️ Visibility</h2>
+      <div class="toggle-row">
+        <div class="toggle-label">
+          <h3>Show Living Updates card in app</h3>
+          <p>Turn off when there's no news to show</p>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="living-visible" checked onchange="setLivingVisible(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📝 Post Update</h2>
+      <div class="form-row">
+        <label>Country</label>
+        <select id="country" onchange="onCountryChange()">
+          <option value="PH">🇵🇭 Philippines (PHP)</option>
+          <option value="ID">🇮🇩 Indonesia (IDR)</option>
+          <option value="MY">🇲🇾 Malaysia (MYR)</option>
+          <option value="SG">🇸🇬 Singapore (SGD)</option>
+          <option value="TH">🇹🇭 Thailand (THB)</option>
+          <option value="VN">🇻🇳 Vietnam (VND)</option>
+          <option value="CN">🇨🇳 China (CNY)</option>
+          <option value="HK">🇭🇰 Hong Kong (HKD)</option>
+          <option value="JP">🇯🇵 Japan (JPY)</option>
+          <option value="KR">🇰🇷 South Korea (KRW)</option>
+          <option value="TW">🇹🇼 Taiwan (TWD)</option>
+          <option value="IN">🇮🇳 India (INR)</option>
+          <option value="AU">🇦🇺 Australia (AUD)</option>
+          <option value="BR">🇧🇷 Brazil (BRL)</option>
+          <option value="CA">🇨🇦 Canada (CAD)</option>
+          <option value="EU">🇪🇺 Eurozone (EUR)</option>
+          <option value="GB">🇬🇧 United Kingdom (GBP)</option>
+          <option value="MX">🇲🇽 Mexico (MXN)</option>
+          <option value="RU">🇷🇺 Russia (RUB)</option>
+          <option value="TR">🇹🇷 Turkey (TRY)</option>
+          <option value="US">🇺🇸 United States (USD)</option>
+          <option value="ZA">🇿🇦 South Africa (ZAR)</option>
+          <option value="AE">🇦🇪 UAE (AED)</option>
+          <option value="SA">🇸🇦 Saudi Arabia (SAR)</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Date label</label>
+        <input type="text" id="updated-at" placeholder="e.g. May 20, 2026">
+      </div>
+      <hr>
+      <div class="items-header">
+        <span style="font-size:13px;font-weight:700">News Items (1–3)</span>
+        <button class="btn btn-outline" onclick="addItem()">+ Add</button>
+      </div>
+      <div id="items-container"></div>
+      <button class="btn btn-primary" id="save-living-btn" onclick="saveLiving()">💾 Save Update</button>
+    </div>
+
+    <div class="card">
+      <h2>👁 Current: <span id="preview-country">🇵🇭 Philippines</span></h2>
+      <div id="preview-content" style="font-size:13px;color:var(--muted)">Loading…</div>
+    </div>
+  </div>
+
+  <!-- ══ Banner Ad ══ -->
+  <div class="tab-content" id="tab-banner">
+    <div class="card">
+      <h2>🖼️ Banner Ad</h2>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+        Shows as a card between Today's Entries and Streak on the home screen. Leave empty to hide.
+      </p>
+      <div class="form-row">
+        <label>Image URL</label>
+        <input type="text" id="banner-url" placeholder="https://i.imgur.com/xxxxx.jpg" oninput="previewImg('banner-url','banner-img','banner-ph')">
+      </div>
+      <label>Preview</label>
+      <div class="img-preview">
+        <img id="banner-img" alt="">
+        <span class="ph" id="banner-ph">No image — card hidden in app</span>
+      </div>
+      <div style="font-size:11px;color:var(--light);margin-top:6px">Any width × 180px+, PNG/JPG recommended.</div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="save-banner-btn" onclick="saveBanner()">💾 Save Banner</button>
+        <button class="btn btn-danger" onclick="clearField('banner-url','banner-img','banner-ph',saveBanner)">🗑 Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Splash Screen ══ -->
+  <div class="tab-content" id="tab-splash">
+    <div class="card">
+      <h2>🌅 Splash Screen</h2>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+        Shown once per day after midnight. Leave empty to use the default static splash.
+      </p>
+      <div class="form-row">
+        <label>Image URL</label>
+        <input type="text" id="splash-url" placeholder="https://i.imgur.com/xxxxx.jpg" oninput="previewImg('splash-url','splash-img','splash-ph')">
+      </div>
+      <label>Preview</label>
+      <div class="img-preview tall">
+        <img id="splash-img" alt="">
+        <span class="ph" id="splash-ph">No image — default splash used</span>
+      </div>
+      <div style="font-size:11px;color:var(--light);margin-top:6px">Recommended: 1080 × 1920px portrait.</div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="save-splash-btn" onclick="saveSplash()">💾 Save Splash</button>
+        <button class="btn btn-danger" onclick="clearField('splash-url','splash-img','splash-ph',saveSplash)">🗑 Clear</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, doc, setDoc, onSnapshot, serverTimestamp }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const FB = {
+  apiKey:"AIzaSyDuMR7h8JirVAWPTEi5jVZe5Flho-fl_eU",
+  authDomain:"piggycoin-bon168.firebaseapp.com",
+  projectId:"piggycoin-bon168",
+  storageBucket:"piggycoin-bon168.firebasestorage.app",
+  messagingSenderId:"626415559065",
+  appId:"1:626415559065:web:b33aa19e4a87b69e43f308",
+  measurementId:"G-SBRFY9VK3H",
+};
+
+const CM = {
+  PH:{name:'Philippines',flag:'🇵🇭',currency:'PHP'},
+  ID:{name:'Indonesia',flag:'🇮🇩',currency:'IDR'},
+  MY:{name:'Malaysia',flag:'🇲🇾',currency:'MYR'},
+  SG:{name:'Singapore',flag:'🇸🇬',currency:'SGD'},
+  TH:{name:'Thailand',flag:'🇹🇭',currency:'THB'},
+  VN:{name:'Vietnam',flag:'🇻🇳',currency:'VND'},
+  CN:{name:'China',flag:'🇨🇳',currency:'CNY'},
+  HK:{name:'Hong Kong',flag:'🇭🇰',currency:'HKD'},
+  JP:{name:'Japan',flag:'🇯🇵',currency:'JPY'},
+  KR:{name:'South Korea',flag:'🇰🇷',currency:'KRW'},
+  TW:{name:'Taiwan',flag:'🇹🇼',currency:'TWD'},
+  IN:{name:'India',flag:'🇮🇳',currency:'INR'},
+  AU:{name:'Australia',flag:'🇦🇺',currency:'AUD'},
+  BR:{name:'Brazil',flag:'🇧🇷',currency:'BRL'},
+  CA:{name:'Canada',flag:'🇨🇦',currency:'CAD'},
+  EU:{name:'Eurozone',flag:'🇪🇺',currency:'EUR'},
+  GB:{name:'United Kingdom',flag:'🇬🇧',currency:'GBP'},
+  MX:{name:'Mexico',flag:'🇲🇽',currency:'MXN'},
+  RU:{name:'Russia',flag:'🇷🇺',currency:'RUB'},
+  TR:{name:'Turkey',flag:'🇹🇷',currency:'TRY'},
+  US:{name:'United States',flag:'🇺🇸',currency:'USD'},
+  ZA:{name:'South Africa',flag:'🇿🇦',currency:'ZAR'},
+  AE:{name:'UAE',flag:'🇦🇪',currency:'AED'},
+  SA:{name:'Saudi Arabia',flag:'🇸🇦',currency:'SAR'},
+};
+
+const TOPICS = ['Fuel','Rice','Inflation','Transport','Utilities','Wages','Other'];
+
+let db = null;
+let unsubLiving = null;
+
+// Init
+try {
+  db = getFirestore(initializeApp(FB));
+  const sb = document.getElementById('status-bar');
+  sb.className = 'status ok';
+  sb.textContent = '✅ Connected';
+  subscribeLiving();
+  subscribeLivingVisible();
+  subscribeDoc('banner',  d => { document.getElementById('banner-url').value = d.imageUrl||''; previewImg('banner-url','banner-img','banner-ph'); });
+  subscribeDoc('splash',  d => { document.getElementById('splash-url').value = d.imageUrl||''; previewImg('splash-url','splash-img','splash-ph'); });
+} catch(e) {
+  const sb = document.getElementById('status-bar');
+  sb.className='status err'; sb.textContent='❌ Error';
+  console.error(e);
+}
+
+function subscribeDoc(docId, cb) {
+  if (!db) return;
+  onSnapshot(doc(db,'app_config',docId), s => cb(s.exists()?s.data():{}));
+}
+
+// Tabs
+window.switchTab = function(name) {
+  const names = ['living','banner','splash'];
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',names[i]===name));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+};
+
+// Living visibility
+function subscribeLivingVisible() {
+  subscribeDoc('living_update', d => {
+    document.getElementById('living-visible').checked = d.visible !== false;
+  });
+}
+window.setLivingVisible = async function(val) {
+  try {
+    await setDoc(doc(db,'app_config','living_update'),{visible:val,updatedAt:serverTimestamp()});
+    toast(val?'✅ Living Updates visible':'✅ Living Updates hidden','success');
+  } catch(e){ toast('❌ '+e.message,'error'); }
+};
+
+// Living content
+window.onCountryChange = function() {
+  const code = document.getElementById('country').value;
+  document.getElementById('preview-country').textContent = CM[code].flag+' '+CM[code].name;
+  subscribeLiving();
+};
+
+function subscribeLiving() {
+  if (!db) return;
+  if (unsubLiving) unsubLiving();
+  const code = document.getElementById('country').value;
+  unsubLiving = onSnapshot(doc(db,'living_updates',code), snap => {
+    const el = document.getElementById('preview-content');
+    if (!snap.exists()) { el.innerHTML='<em>No data yet.</em>'; return; }
+    const d = snap.data();
+    let h = `<div style="font-size:12px;color:var(--muted);margin-bottom:8px">Updated: <strong>${d.updatedAt||'—'}</strong></div>`;
+    (d.items||[]).forEach(item => {
+      h += `<div class="preview-item"><div class="pi-title">${item.title}${item.delta?` <span style="color:var(--green);font-size:11px">${item.delta}</span>`:''}</div><div class="pi-body">${item.summary}</div><div class="pi-meta">${item.topic}${item.sourceName?' · '+item.sourceName:''}</div></div>`;
+    });
+    el.innerHTML = h;
+  });
+}
+
+let itemCount = 0;
+window.addItem = function() {
+  if (itemCount>=3){toast('Max 3 items','error');return;}
+  itemCount++;
+  const id='item-'+itemCount;
+  const opts=TOPICS.map(t=>`<option>${t}</option>`).join('');
+  document.getElementById('items-container').insertAdjacentHTML('beforeend',`
+  <div class="item-block" id="${id}">
+    <div class="item-num">ITEM ${itemCount}</div>
+    <button class="remove-btn" onclick="removeItem('${id}')">✕</button>
+    <div class="row-2">
+      <div class="form-row"><label>Topic</label><select class="i-topic">${opts}</select></div>
+      <div class="form-row"><label>Delta (optional)</label><input type="text" class="i-delta" placeholder="-₱1.20/L"></div>
+    </div>
+    <div class="form-row"><label>Title</label><input type="text" class="i-title" placeholder="Short headline"></div>
+    <div class="form-row"><label>Summary</label><textarea class="i-summary" rows="3" placeholder="1–2 sentences..."></textarea></div>
+    <div class="row-2">
+      <div class="form-row"><label>Source</label><input type="text" class="i-source-name" placeholder="e.g. Reuters"></div>
+      <div class="form-row"><label>Source URL</label><input type="text" class="i-source-url" placeholder="https://..."></div>
+    </div>
+  </div>`);
+};
+
+window.removeItem = function(id) {
+  document.getElementById(id)?.remove();
+  const bl = document.querySelectorAll('.item-block');
+  itemCount=bl.length;
+  bl.forEach((b,i)=>b.querySelector('.item-num').textContent='ITEM '+(i+1));
+};
+
+window.saveLiving = async function() {
+  if (!db){toast('Not connected','error');return;}
+  const code=document.getElementById('country').value;
+  const updAt=document.getElementById('updated-at').value.trim();
+  const bl=document.querySelectorAll('.item-block');
+  if (!bl.length){toast('Add at least 1 item','error');return;}
+  const items=[];let valid=true;
+  bl.forEach(b=>{
+    const title=b.querySelector('.i-title').value.trim();
+    const summary=b.querySelector('.i-summary').value.trim();
+    if(!title||!summary){valid=false;return;}
+    const delta=b.querySelector('.i-delta').value.trim();
+    items.push({topic:b.querySelector('.i-topic').value,title,delta:delta||null,summary,
+      sourceName:b.querySelector('.i-source-name').value.trim(),
+      sourceUrl:b.querySelector('.i-source-url').value.trim()});
+  });
+  if(!valid){toast('Fill title & summary for all items','error');return;}
+  const btn=document.getElementById('save-living-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Saving…';
+  try{
+    await setDoc(doc(db,'living_updates',code),{
+      country:code,countryName:CM[code].name,flag:CM[code].flag,currency:CM[code].currency,
+      updatedAt:updAt||new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),
+      generatedAt:serverTimestamp(),items});
+    toast('✅ Saved!','success');
+  }catch(e){toast('❌ '+e.message,'error');}
+  finally{btn.disabled=false;btn.innerHTML='💾 Save Update';}
+};
+
+// Banner
+window.saveBanner = async function() {
+  const url=document.getElementById('banner-url').value.trim();
+  const btn=document.getElementById('save-banner-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';
+  try{
+    await setDoc(doc(db,'app_config','banner'),{imageUrl:url,updatedAt:serverTimestamp()});
+    toast(url?'✅ Banner saved! App updates instantly.':'✅ Banner cleared.','success');
+  }catch(e){toast('❌ '+e.message,'error');}
+  finally{btn.disabled=false;btn.innerHTML='💾 Save Banner';}
+};
+
+// Splash
+window.saveSplash = async function() {
+  const url=document.getElementById('splash-url').value.trim();
+  const btn=document.getElementById('save-splash-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';
+  try{
+    await setDoc(doc(db,'app_config','splash'),{imageUrl:url,updatedAt:serverTimestamp()});
+    toast(url?'✅ Splash saved!':'✅ Splash cleared (default used).','success');
+  }catch(e){toast('❌ '+e.message,'error');}
+  finally{btn.disabled=false;btn.innerHTML='💾 Save Splash';}
+};
+
+// Helpers
+window.previewImg = function(inputId, imgId, phId) {
+  const url=document.getElementById(inputId).value.trim();
+  const img=document.getElementById(imgId);
+  const ph=document.getElementById(phId);
+  if(url){img.src=url;img.style.display='block';ph.style.display='none';}
+  else{img.src='';img.style.display='none';ph.style.display='block';}
+};
+
+window.clearField = function(inputId, imgId, phId, saveFn) {
+  document.getElementById(inputId).value='';
+  previewImg(inputId, imgId, phId);
+  saveFn();
+};
+
+window.toast = function(msg,type='') {
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.className='show '+type;
+  clearTimeout(el._t);
+  el._t=setTimeout(()=>{el.className='';},2800);
+};
+
+document.getElementById('updated-at').value =
+  new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+addItem();
+</script>
+</body>
+</html>
